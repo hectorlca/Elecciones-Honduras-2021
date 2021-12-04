@@ -12,6 +12,8 @@ library (plyr)
 library (dplyr)
 library (jsonlite)
 library (readr)
+library (RSelenium)
+library (rvest)
 
 ```
 
@@ -58,6 +60,13 @@ consolidadoPres <- read_csv("data/consolidadoPres.csv")
 
 ```{r Loops Para Scrape}
 
+### Preparar Selenium y abrir browser ###
+
+driver <- rsDriver(browser=c("firefox"))
+remDr <- driver[["client"]]
+
+##
+
 ##############################
 #### LOOP Scrape CSV DIPS ####
 ##############################
@@ -102,7 +111,7 @@ consolidadoPres <- data.frame()
 
 for (i in 1:nrow(spspres)) {
   resPres <- 
-    read_csv(paste0("data/Resultados/",spspres$PRESJRV[[i]], "_PRE_PRE.csv" )) %>%
+    read_csv(paste0("data/Resultados/Presidente",spspres$PRESJRV[[i]], "_PRE_PRE.csv" )) %>%
     select(id_ubicacion, cant_votantes, 
            cant_votos_positivos, cant_votos_negativos, 
            porcentaje_participacion, id_candidatura, 
@@ -122,7 +131,7 @@ consolidadoDips <- data.frame()
 
 for (i in 1:nrow(spspres)) {
   resDips <- 
-    read_csv(paste0("data/Resultados/",spspres$PRESJRV[[i]], "_DIP_DIP.csv" )) %>%
+    read_csv(paste0("data/Resultados/Diputados",spspres$PRESJRV[[i]], "_DIP_DIP.csv" )) %>%
     select(id_ubicacion, cant_votos_positivos, cant_votos_negativos,
            porcentaje_participacion, cant_votantes, id_candidatura,
            descripcion_candidatura, cant_votos, hora_proceso)
