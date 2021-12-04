@@ -1,0 +1,138 @@
+---
+title: "Detecci[on Fraude"
+author: "Hector Corrales"
+date: "12/4/2021"
+output: html_document
+---
+
+```{r Cargar Libraries, include=FALSE}
+knitr::opts_chunk$set(include = FALSE)
+
+library (plyr)
+library (dplyr)
+library (jsonlite)
+library (readr)
+
+```
+
+```{r Importar y Formato de Data, include=FALSE}
+
+# RAW #
+sps <- read.csv("data/cortesdips.csv")
+spspres <- read.csv("data/cortespres.csv")
+
+sps <- na.omit(sps)
+spspres <- na.omit(spspres)
+
+sps$url <- paste0("https://resultadosgenerales2021.cne.hn/#resultados/DIP/", sps$JRV)
+sps$presurl <- paste0("https://resultadosgenerales2021.cne.hn/#resultados/PRE/", sps$PRESJRV, "_PRE/")  
+spspres$presurl <- paste0("https://resultadosgenerales2021.cne.hn/#resultados/PRE/", spspres$PRESJRV, "_PRE") 
+
+# CONSOLIDADA #
+
+consolidadoDips <- read_csv("data/consolidadoDips.csv")
+consolidadoPres <- read_csv("data/consolidadoPres.csv")
+
+```
+
+```{r Nuevas Variables}
+
+# Se usa informacion de actas presidenciales para
+# enriquecer data de actas de diputados.
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+#Codigo para Documentacion de Proceso de Scraping
+
+```{r Loops Para Scrape}
+
+##############################
+#### LOOP Scrape CSV DIPS ####
+##############################
+
+
+for(i in 1:nrow(sps))  {
+  remDr$navigate(paste0(sps$url[[i]]))
+  Sys.sleep(2)
+  buttonDL <- remDr$findElement(using = "link text", "CSV")
+  buttonDL$clickElement()
+  Sys.sleep(1)
+}
+
+##############################
+#### LOOP Scrape CSV PRES ####
+##############################
+
+for(i in 1:nrow(spspres))  {
+  remDr$navigate(paste0(spspres$presurl[[i]]))
+  Sys.sleep(1)
+  buttonDL <- remDr$findElement(using = "link text", "CSV")
+  buttonDL$clickElement()
+  Sys.sleep(1)
+}
+
+
+```
+
+#Codigo para Documentacion de Proceso de Consolidacion de Archivos
+
+```{r Unir todos los archivos}
+
+# Solo para propositos de documentacion y replicabilidad. #
+# Accesar los archivos consolidados en el folder "data", bajjo nombres 
+# consolidadoPres.csv y consolidadoDips.csv
+
+#############################
+### Resultados Presidente ###
+#############################
+
+consolidadoPres <- data.frame()
+
+for (i in 1:nrow(spspres)) {
+  resPres <- 
+    read_csv(paste0("data/Resultados/",spspres$PRESJRV[[i]], "_PRE_PRE.csv" )) %>%
+    select(id_ubicacion, cant_votantes, 
+           cant_votos_positivos, cant_votos_negativos, 
+           porcentaje_participacion, id_candidatura, 
+           descripcion_candidatura, cant_votos )
+  
+    consolidadoPres <- rbind(consolidadoPres, resPres) 
+    
+    }
+
+write.csv(consolidadoPres, "data/consolidadoPres.csv", row.names = FALSE)
+
+###########################
+### Resultados Congreso ###
+###########################
+
+consolidadoDips <- data.frame()
+
+for (i in 1:nrow(spspres)) {
+  resDips <- 
+    read_csv(paste0("data/Resultados/",spspres$PRESJRV[[i]], "_DIP_DIP.csv" )) %>%
+    select(id_ubicacion, cant_votos_positivos, cant_votos_negativos,
+           porcentaje_participacion, cant_votantes, id_candidatura,
+           descripcion_candidatura, cant_votos, hora_proceso)
+  
+    consolidadoDips <- rbind(consolidadoDips, resDips)
+    
+    }
+
+write.csv(consolidadoDips, "data/consolidadoDips.csv", row.names = FALSE)
+
+
+```
+
