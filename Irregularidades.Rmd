@@ -1,5 +1,5 @@
 ---
-title: "Detecci[on Fraude"
+title: "Deteccion de Irregularidades"
 author: "Hector Corrales"
 date: "12/4/2021"
 output: html_document
@@ -18,6 +18,7 @@ library (tidyverse)
 library (stringr)
 
 ```
+
 
 ```{r Importar y Formato de Data, message=FALSE, include=FALSE}
 
@@ -58,9 +59,18 @@ consolidadoDips <- consolidadoDips %>%
 consolidadoPres <- consolidadoPres %>%
   separate(id_ubicacion, c("pais", "departamento", "municipio", "urbano", "centro", "jrv"))
 
+#Estandarizar para merge.
+
+consolidadoDips$descripcion_candidatura <- str_replace(consolidadoDips$descripcion_candidatura, "Voto en BLANCO", "Blanco")
+consolidadoDips$descripcion_candidatura <- str_replace(consolidadoDips$descripcion_candidatura, "Voto NULOS", "Blanco")#
+
+consolidadoPres$descripcion_candidatura <- str_replace(consolidadoPres$descripcion_candidatura, "Votos NULOS", "Nulos")
+consolidadoPres$descripcion_candidatura <- str_replace(consolidadoPres$descripcion_candidatura, "Voto en BLANCO", "Blancos")
+
 rm (spspres, sps)
 
 ```
+
 
 ```{r Nuevas Variables}
 
@@ -73,9 +83,11 @@ consolidadoDips <- left_join(consolidadoDips, codPartidos, by = c("id_candidatur
 
 marcasPartido <- 
   consolidadoDips %>% 
-  group_by (centro, jrv, partidoDip.y) %>%
-  summarise (marcas = sum(cant_votos)) %>%
-  left
+  group_by (centro, jrv, partidoDip) %>%
+  summarise (marcasDips = sum(cant_votos))
+
+marcasPartido$partidoDip <- str_replace(marcasPartido$partidoDip, "PSH", "PSH/UNOH")
+  
 
 
 # Agregarle data de votos de Presidente a MarcasPartido
@@ -84,14 +96,41 @@ resPartidos <-
   consolidadoPres %>%
   select(jrv, 
          votantes_pres = cant_votantes,
-         votosPres_positivos = cant_votos_positivos,
-         votosPres_negativos = cant_votos_negativos,
-         id_candidaturaPres = id_candidatura,
          partidoPres = descripcion_candidatura,
          marcasPres = cant_votos)
+
+resPartidos$partidoPres <- str_replace(resPartidos$partidoPres, "UNIDAD NACIONAL OPOSITORA DE HONDURAS", "PSH/UNOH")
          
-     
-           ##### Pausa - Estado del Analisis hasta aqui ###
+
+
+resultados <- 
+  left_join(marcasPartido, resPartidos, by = c("jrv", "partidoDip" = "partidoPres"), keep = TRUE) %>%
+  select(centro, jrv = jrv.x, carga = votantes_pres, partidoPres, marcasPres, partidoDip, marcasDip = marcasDips) %>%
+  filter(partidoDip == "PARTIDO LIBERTAD Y REFUNDACION" | 
+         partidoDip == "PARTIDO NACIONAL DE HONDURAS" |
+         partidoDip == "PARTIDO LIBERAL DE HONDURAS" |
+         partidoDip == "PSH/UNOH")
+
+rm(codPartidos, marcasPartido, resPartidos)
+
+### Agregar mas Resultados ###
+
+resultados$sharePres <- round((resultados$marcasPres/resultados$carga)*100, 1)
+
+### Total MarcasDips ###
+
+sum.marcasDips <- 
+  group_by (resultados, jrv) %>%
+  summarise(total.marcasDips = sum(marcasDip))
+
+resultados <- left_join(resultados, sum.marcasDips, by = "jrv", keep = FALSE)
+resultados$shareDips <- round((resultados$marcasDip/resultados$total.marcasDips)*100, 1)
+  
+
+
+
+
+
 
 
 
