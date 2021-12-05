@@ -126,7 +126,7 @@ sum.marcasDips <-
 resultados <- left_join(resultados, sum.marcasDips, by = "jrv", keep = FALSE)
 resultados$shareDips <- round((resultados$marcasDip/resultados$total.marcasDips)*100, 1)
   
-
+###
 
 
 
