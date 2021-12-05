@@ -67,12 +67,14 @@ consolidadoDips$descripcion_candidatura <- str_replace(consolidadoDips$descripci
 consolidadoPres$descripcion_candidatura <- str_replace(consolidadoPres$descripcion_candidatura, "Votos NULOS", "Nulos")
 consolidadoPres$descripcion_candidatura <- str_replace(consolidadoPres$descripcion_candidatura, "Voto en BLANCO", "Blancos")
 
+codDepts <- read.csv("casillaspordept.csv")
+
 rm (spspres, sps)
 
 ```
 
 
-```{r Nuevas Variables}
+```{r Tabla de Resultados}
 
 # Agregarle Descripcion Partido a ConsolidadoDips #
 
@@ -94,22 +96,31 @@ marcasPartido$partidoDip <- str_replace(marcasPartido$partidoDip, "PSH", "PSH/UN
 
 resPartidos <- 
   consolidadoPres %>%
-  select(jrv, 
+  select(departamento,
+         jrv, 
          votantes_pres = cant_votantes,
          partidoPres = descripcion_candidatura,
          marcasPres = cant_votos)
 
 resPartidos$partidoPres <- str_replace(resPartidos$partidoPres, "UNIDAD NACIONAL OPOSITORA DE HONDURAS", "PSH/UNOH")
          
-
+####################################
+#### Armar Tabla de Resultados ####
+###################################
 
 resultados <- 
   left_join(marcasPartido, resPartidos, by = c("jrv", "partidoDip" = "partidoPres"), keep = TRUE) %>%
-  select(centro, jrv = jrv.x, carga = votantes_pres, partidoPres, marcasPres, partidoDip, marcasDip = marcasDips) %>%
+  select(departamento, centro, jrv = jrv.x, carga = votantes_pres, partidoPres, marcasPres, partidoDip, marcasDip = marcasDips) %>%
   filter(partidoDip == "PARTIDO LIBERTAD Y REFUNDACION" | 
          partidoDip == "PARTIDO NACIONAL DE HONDURAS" |
          partidoDip == "PARTIDO LIBERAL DE HONDURAS" |
          partidoDip == "PSH/UNOH")
+
+resultados$departamento <- as.numeric(resultados$departamento)
+ 
+resultados <- left_join(resultados, codDepts, by = c("departamento" = "id_departamento"), keep = FALSE)
+resultados$marcasPosibles <- resultados$carga*resultados$numero_casillas
+
 
 rm(codPartidos, marcasPartido, resPartidos)
 
@@ -125,8 +136,22 @@ sum.marcasDips <-
 
 resultados <- left_join(resultados, sum.marcasDips, by = "jrv", keep = FALSE)
 resultados$shareDips <- round((resultados$marcasDip/resultados$total.marcasDips)*100, 1)
+
+rm(consolidadoDips, consolidadoPres, sum.marcasDips, codDepts)
   
-###
+#####################################
+#### Trabajar Tabla de Resultados ###
+#####################################
+
+resultados <- rename(resultados, partido = partidoPres)
+resultados$partidoDip <- NULL
+
+### Encontrar Exceso de Marcas###
+
+resultados$exceso_marcas <- ifelse (resultados$total.marcasDips > resultados$marcasPosibles,
+                                    yes = 1,
+                                    no = 0)
+
 
 
 
