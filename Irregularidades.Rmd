@@ -43,8 +43,6 @@ consolidadoDips$id_candidatura <-
 consolidadoDips$id_candidatura <-
   ifelse(consolidadoDips$id_candidatura == "NUL", yes = "16", no = consolidadoDips$id_candidatura)
 
-
-
 consolidadoDips$id_candidatura <- floor(as.numeric(consolidadoDips$id_candidatura))
 
 # Quitar sufijos #
@@ -80,19 +78,7 @@ marcasPartido <-
   left
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-# Agregarle data de votos de Presidente a ConsolidadoDips
+# Agregarle data de votos de Presidente a MarcasPartido
 
 resPartidos <- 
   consolidadoPres %>%
@@ -105,7 +91,7 @@ resPartidos <-
          marcasPres = cant_votos)
          
      
-           
+           ##### Pausa - Estado del Analisis hasta aqui ###
 
 
 
