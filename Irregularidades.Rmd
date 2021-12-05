@@ -14,10 +14,12 @@ library (jsonlite)
 library (readr)
 library (RSelenium)
 library (rvest)
+library (tidyverse)
+library (stringr)
 
 ```
 
-```{r Importar y Formato de Data, include=FALSE}
+```{r Importar y Formato de Data, message=FALSE, include=FALSE}
 
 # RAW #
 sps <- read.csv("data/cortesdips.csv")
@@ -35,13 +37,75 @@ spspres$presurl <- paste0("https://resultadosgenerales2021.cne.hn/#resultados/PR
 consolidadoDips <- read_csv("data/consolidadoDips.csv")
 consolidadoPres <- read_csv("data/consolidadoPres.csv")
 
+consolidadoDips$id_candidatura <- 
+  ifelse(consolidadoDips$id_candidatura == "BLC", yes = "15", no = consolidadoDips$id_candidatura)
+
+consolidadoDips$id_candidatura <-
+  ifelse(consolidadoDips$id_candidatura == "NUL", yes = "16", no = consolidadoDips$id_candidatura)
+
+
+
+consolidadoDips$id_candidatura <- floor(as.numeric(consolidadoDips$id_candidatura))
+
+# Quitar sufijos #
+
+consolidadoPres$id_ubicacion <- str_remove(consolidadoPres$id_ubicacion, "_PRE")
+consolidadoDips$id_ubicacion <- str_remove(consolidadoDips$id_ubicacion, "_DIP")
+
+#Separar id_ubicacion para accesar solo numero de JRV
+
+consolidadoDips <- consolidadoDips %>%
+  separate(id_ubicacion, c("pais", "departamento", "municipio", "urbano", "centro", "jrv"))
+
+consolidadoPres <- consolidadoPres %>%
+  separate(id_ubicacion, c("pais", "departamento", "municipio", "urbano", "centro", "jrv"))
+
+rm (spspres, sps)
+
 ```
 
 ```{r Nuevas Variables}
 
-# Se usa informacion de actas presidenciales para
-# enriquecer data de actas de diputados.
+# Agregarle Descripcion Partido a ConsolidadoDips #
 
+codPartidos <- read.csv("codigos partidos.csv")
+consolidadoDips <- left_join(consolidadoDips, codPartidos, by = c("id_candidatura" = "id_partidoDip"))
+
+# Calcular Marcas por Partido por Mesa
+
+marcasPartido <- 
+  consolidadoDips %>% 
+  group_by (centro, jrv, partidoDip.y) %>%
+  summarise (marcas = sum(cant_votos)) %>%
+  left
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Agregarle data de votos de Presidente a ConsolidadoDips
+
+resPartidos <- 
+  consolidadoPres %>%
+  select(jrv, 
+         votantes_pres = cant_votantes,
+         votosPres_positivos = cant_votos_positivos,
+         votosPres_negativos = cant_votos_negativos,
+         id_candidaturaPres = id_candidatura,
+         partidoPres = descripcion_candidatura,
+         marcasPres = cant_votos)
+         
+     
+           
 
 
 
@@ -57,8 +121,8 @@ consolidadoPres <- read_csv("data/consolidadoPres.csv")
 
 
 #Codigo para Documentacion de Proceso de Scraping
-
-```{r Loops Para Scrape}
+  
+  ```{r Loops Para Scrape}
 
 ### Preparar Selenium y abrir browser ###
 
@@ -95,6 +159,7 @@ for(i in 1:nrow(spspres))  {
 
 ```
 
+
 #Codigo para Documentacion de Proceso de Consolidacion de Archivos
 
 ```{r Unir todos los archivos}
@@ -111,11 +176,11 @@ consolidadoPres <- data.frame()
 
 for (i in 1:nrow(spspres)) {
   resPres <- 
-    read_csv(paste0("data/Resultados/Presidente",spspres$PRESJRV[[i]], "_PRE_PRE.csv" )) %>%
+    read_csv(paste0("data/Resultados/Presidente/",spspres$PRESJRV[[i]], "_PRE_PRE.csv" )) %>%
     select(id_ubicacion, cant_votantes, 
            cant_votos_positivos, cant_votos_negativos, 
            porcentaje_participacion, id_candidatura, 
-           descripcion_candidatura, cant_votos )
+           descripcion_candidatura, cant_votos, hora_proceso )
   
     consolidadoPres <- rbind(consolidadoPres, resPres) 
     
@@ -131,7 +196,7 @@ consolidadoDips <- data.frame()
 
 for (i in 1:nrow(spspres)) {
   resDips <- 
-    read_csv(paste0("data/Resultados/Diputados",spspres$PRESJRV[[i]], "_DIP_DIP.csv" )) %>%
+    read_csv(paste0("data/Resultados/Diputados/",spspres$PRESJRV[[i]], "_DIP_DIP.csv" )) %>%
     select(id_ubicacion, cant_votos_positivos, cant_votos_negativos,
            porcentaje_participacion, cant_votantes, id_candidatura,
            descripcion_candidatura, cant_votos, hora_proceso)
