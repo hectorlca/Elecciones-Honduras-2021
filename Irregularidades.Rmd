@@ -152,7 +152,18 @@ resultados$exceso_marcas <- ifelse (resultados$total.marcasDips > resultados$mar
                                     yes = 1,
                                     no = 0)
 
+### Encontrar % Participacion por Centro de Votacion ###
 
+participacion_centro <- 
+  group_by(resultados, centro, jrv) %>%
+  summarise(carga_centro = mean(carga), votantes = sum(marcasPres))
+
+
+
+#### Dividir en solo dos grupos: Partido Nacional y Oposicion ####
+# Esto porque el cruce es entre Partido de Presidente y Oposicion.
+
+resultados$grupo <- ifelse (resultados$partido == "PARTIDO NACIONAL DE HONDURAS")
 
 
 
