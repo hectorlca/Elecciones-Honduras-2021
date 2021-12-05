@@ -16,6 +16,7 @@ library (RSelenium)
 library (rvest)
 library (tidyverse)
 library (stringr)
+library (data.table)
 
 ```
 
@@ -61,11 +62,12 @@ consolidadoPres <- consolidadoPres %>%
 
 #Estandarizar para merge.
 
-consolidadoDips$descripcion_candidatura <- str_replace(consolidadoDips$descripcion_candidatura, "Voto en BLANCO", "Blanco")
-consolidadoDips$descripcion_candidatura <- str_replace(consolidadoDips$descripcion_candidatura, "Voto NULOS", "Blanco")#
+consolidadoDips$descripcion_candidatura <- str_replace(consolidadoDips$descripcion_candidatura, "Voto en BLANCO", "Blancos")
+consolidadoDips$descripcion_candidatura <- str_replace(consolidadoDips$descripcion_candidatura, "Votos NULOS", "Nulos")
 
-consolidadoPres$descripcion_candidatura <- str_replace(consolidadoPres$descripcion_candidatura, "Votos NULOS", "Nulos")
 consolidadoPres$descripcion_candidatura <- str_replace(consolidadoPres$descripcion_candidatura, "Voto en BLANCO", "Blancos")
+consolidadoPres$descripcion_candidatura <- str_replace(consolidadoPres$descripcion_candidatura, "Votos NULOS", "Nulos")
+
 
 codDepts <- read.csv("casillaspordept.csv")
 
@@ -74,13 +76,74 @@ rm (spspres, sps)
 ```
 
 
-```{r Tabla de Resultados}
-
+```{r Procesamiento ConsolidadoDips, include=FALSE}
 # Agregarle Descripcion Partido a ConsolidadoDips #
 
 codPartidos <- read.csv("codigos partidos.csv")
 consolidadoDips <- left_join(consolidadoDips, codPartidos, by = c("id_candidatura" = "id_partidoDip"))
 
+rm(codPartidos)
+
+#################################################
+### Aislar Votos Nulos y Blancos de Diputados ###
+#################################################
+
+blancos_nulos <-
+  consolidadoDips %>%  
+  filter(descripcion_candidatura == "Blancos" | descripcion_candidatura =="Nulos") %>%
+  select(jrv, descripcion_candidatura, cant_votos)
+
+blancosnulosmelt <- dcast(melt(as.data.table(blancos_nulos), id.vars = c("descripcion_candidatura", "jrv")), 
+      jrv + variable ~ descripcion_candidatura, value.var = "value")
+
+rm(blancos_nulos)
+
+######################################
+### Calcular Planchas por Partido ###
+#####################################
+
+planchas <- 
+   consolidadoDips %>%
+   group_by(jrv, partidoDip) %>%
+   summarise (planchas = min(cant_votos)) %>%
+   filter (partidoDip != "Blancos") %>%
+   filter (partidoDip != "Nulos")
+
+
+####################################################
+### Encontrar el Diputado mas Votado en una JRV ###
+###################################################
+soloVotantes_pres <- unique(select(consolidadoPres, jrv, cant_votantes))
+soloVotantes_dips <- unique(select(consolidadoDips, jrv, cant_votantes))
+
+mas_votado <- 
+  consolidadoDips %>%
+  filter (partidoDip != "Blancos") %>%
+  filter (partidoDip != "Nulos") %>%
+  group_by(jrv, partidoDip) %>%
+  summarise(masVotado = max (cant_votos), total_marcas_partido = sum(cant_votos)) 
+
+mas_votado <- left_join(mas_votado, planchas, keep = FALSE)
+mas_votado <- left_join(mas_votado, blancosnulosmelt, keep = FALSE)
+mas_votado$variable <- NULL
+
+mas_votado <- left_join(mas_votado, soloVotantes_pres, keep = FALSE)
+
+## Calcula Numero de Papeletas Validas usando Data de ConsolidadoDips y ConsolidadoPres ##
+mas_votado$papeletas_validas <- (mas_votado$cant_votantes - mas_votado$Nulos - mas_votado$Blancos)
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r Union Presidente y Diputados}
 # Calcular Marcas por Partido por Mesa
 
 marcasPartido <- 
@@ -89,7 +152,6 @@ marcasPartido <-
   summarise (marcasDips = sum(cant_votos))
 
 marcasPartido$partidoDip <- str_replace(marcasPartido$partidoDip, "PSH", "PSH/UNOH")
-  
 
 
 # Agregarle data de votos de Presidente a MarcasPartido
@@ -122,7 +184,7 @@ resultados <- left_join(resultados, codDepts, by = c("departamento" = "id_depart
 resultados$marcasPosibles <- resultados$carga*resultados$numero_casillas
 
 
-rm(codPartidos, marcasPartido, resPartidos)
+#rm(codPartidos, marcasPartido, resPartidos)
 
 ### Agregar mas Resultados ###
 
@@ -137,7 +199,7 @@ sum.marcasDips <-
 resultados <- left_join(resultados, sum.marcasDips, by = "jrv", keep = FALSE)
 resultados$shareDips <- round((resultados$marcasDip/resultados$total.marcasDips)*100, 1)
 
-rm(consolidadoDips, consolidadoPres, sum.marcasDips, codDepts)
+#rm(consolidadoDips, consolidadoPres, sum.marcasDips, codDepts)
   
 #####################################
 #### Trabajar Tabla de Resultados ###
@@ -152,18 +214,18 @@ resultados$exceso_marcas <- ifelse (resultados$total.marcasDips > resultados$mar
                                     yes = 1,
                                     no = 0)
 
-### Encontrar % Participacion por Centro de Votacion ###
 
-participacion_centro <- 
-  group_by(resultados, centro, jrv) %>%
-  summarise(carga_centro = mean(carga), votantes = sum(marcasPres))
+
+### Encontrar 
+
+
 
 
 
 #### Dividir en solo dos grupos: Partido Nacional y Oposicion ####
 # Esto porque el cruce es entre Partido de Presidente y Oposicion.
 
-resultados$grupo <- ifelse (resultados$partido == "PARTIDO NACIONAL DE HONDURAS")
+
 
 
 
@@ -216,7 +278,6 @@ for(i in 1:nrow(spspres))  {
   buttonDL$clickElement()
   Sys.sleep(1)
 }
-
 
 ```
 
