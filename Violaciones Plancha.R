@@ -1,29 +1,4 @@
----
-title: "Deteccion de Irregularidades"
-author: "Hector Corrales"
-date: "12/4/2021"
-output: html_document
----
-
-```{r Cargar Libraries, include=FALSE}
-knitr::opts_chunk$set(include = FALSE)
-
-library (plyr)
-library (dplyr)
-library (jsonlite)
-library (readr)
-library (RSelenium)
-library (rvest)
-library (tidyverse)
-library (stringr)
-library (data.table)
-
-```
-
-
-```{r Importar y Formato de Data, message=FALSE, include=FALSE}
-
-# RAW #
+#RAW #
 sps <- read.csv("data/cortesdips.csv")
 spspres <- read.csv("data/cortespres.csv")
 
@@ -73,10 +48,8 @@ codDepts <- read.csv("casillaspordept.csv")
 
 rm (spspres, sps)
 
-```
+#############
 
-
-```{r Procesamiento ConsolidadoDips, include=FALSE}
 # Agregarle Descripcion Partido a ConsolidadoDips #
 
 codPartidos <- read.csv("codigos partidos.csv")
@@ -94,7 +67,7 @@ blancos_nulos <-
   select(jrv, descripcion_candidatura, cant_votos)
 
 blancosnulosmelt <- dcast(melt(as.data.table(blancos_nulos), id.vars = c("descripcion_candidatura", "jrv")), 
-      jrv + variable ~ descripcion_candidatura, value.var = "value")
+                          jrv + variable ~ descripcion_candidatura, value.var = "value")
 
 rm(blancos_nulos)
 
@@ -103,11 +76,11 @@ rm(blancos_nulos)
 #####################################
 
 planchas <- 
-   consolidadoDips %>%
-   group_by(jrv, partidoDip) %>%
-   summarise (planchas = min(cant_votos)) %>%
-   filter (partidoDip != "Blancos") %>%
-   filter (partidoDip != "Nulos")
+  consolidadoDips %>%
+  group_by(jrv, partidoDip) %>%
+  summarise (planchas = min(cant_votos)) %>%
+  filter (partidoDip != "Blancos") %>%
+  filter (partidoDip != "Nulos")
 
 
 ####################################################
@@ -136,7 +109,7 @@ mas_votado$papeletas_validas <- (mas_votado$cant_votantes - mas_votado$Nulos - m
 #### Transpose MAs_Votados para explorar ###
 
 mas_votado_melt <- dcast(melt(as.data.table(mas_votado), id.vars = c("partidoDip", "jrv")), 
-      jrv + variable ~ partidoDip, value.var = "value")
+                         jrv + variable ~ partidoDip, value.var = "value")
 
 planchas_transposed <- 
   mas_votado_melt %>%
@@ -178,7 +151,7 @@ violacion$max_libre <-
   violacion$`PARTIDO LIBERACION DEMOCRATICO DE HONDURAS` - violacion$`PARTIDO NACIONAL DE HONDURAS` - 
   violacion$`PARTIDO LIBERAL DE HONDURAS` - violacion$`PARTIDO NUEVA RUTA DE HONDURAS` - violacion$`PARTIDO TODOS SOMOS HONDURAS` - 
   violacion$`PARTIDO UNIFICACION DEMOCRATICA` - violacion$PINU - violacion$PSH
-  
+
 violacion$max_psh <- 
   violacion$papeletas_validas - violacion$`PARTIDO ALIANZA PATRIOTICA HONDURENA` -
   violacion$`PARTIDO ANTICORRUPCION` - violacion$`PARTIDO DE CENTRO SOCIAL CRISTIANO VA; MOVIMIENTO SOLIDARIO` - 
@@ -204,12 +177,12 @@ mas_votado_principales <-
   filter(mas_votado_melt, variable == "masVotado")
 
 mas_votado_principales <-
-    select(mas_votado_principales, jrv,
-           `PARTIDO NACIONAL DE HONDURAS`,
-           `PARTIDO LIBERTAD Y REFUNDACION`,
-           `PARTIDO LIBERAL DE HONDURAS`,
-           PSH
-           )
+  select(mas_votado_principales, jrv,
+         `PARTIDO NACIONAL DE HONDURAS`,
+         `PARTIDO LIBERTAD Y REFUNDACION`,
+         `PARTIDO LIBERAL DE HONDURAS`,
+         PSH
+  )
 
 ### Unir a Irregulares ###
 
@@ -217,18 +190,18 @@ irregulares <- left_join(irregulares, mas_votado_principales, keep = FALSE)
 
 irregulares$violacion <- "Ninguno"
 irregulares$violacion <- ifelse(irregulares$`PARTIDO NACIONAL DE HONDURAS` > irregulares$max_pn,
-                                   yes = "SI", no = irregulares$violacion)
+                                yes = "PN", no = irregulares$violacion)
 
 irregulares$violacion <- ifelse(irregulares$`PARTIDO LIBERTAD Y REFUNDACION` > irregulares$max_libre,
-                                   yes = "SI", no = irregulares$violacion)
+                                yes = "LIBRE", no = irregulares$violacion)
 
 
 irregulares$violacion <- ifelse(irregulares$`PARTIDO LIBERAL DE HONDURAS` > irregulares$max_plh,
-                                   yes = "SI", no = irregulares$violacion)
+                                yes = "PLH", no = irregulares$violacion)
 
 
 irregulares$violacion <- ifelse(irregulares$PSH > irregulares$max_psh,
-                                   yes = "SI", no = irregulares$violacion)
+                                yes = "PSH", no = irregulares$violacion)
 
 irregulares <- filter(irregulares,
                       violacion != "Ninguno")
@@ -237,7 +210,7 @@ irregulares <- filter(irregulares,
 ### Agregar Links ###
 
 jrvs <- unique(select(consolidadoDips,
-               departamento, municipio, urbano, centro, jrv))
+                      departamento, municipio, urbano, centro, jrv))
 
 jrvs$address <- paste0("HN.", jrvs$departamento, ".", jrvs$municipio, ".", jrvs$urbano, ".", jrvs$centro, ".", jrvs$jrv)
 jrvs$URL <- paste0("https://resultadosgenerales2021.cne.hn/#resultados/DIP/", jrvs$address, "_DIP")
@@ -248,25 +221,25 @@ jrvs$foto <- paste0("https://provisorio-honduras-2021.datosoficiales.com/opt/rec
 #############################
 
 violaciones_plancha <- select (irregulares,
-                       JRV = jrv,
-                       papeletas_validas,
-                       
-                       max_posible_pn = max_pn,
-                       mas_votado_pn = `PARTIDO NACIONAL DE HONDURAS`,
-                       
-                       max_posible_libre = max_libre,
-                       mas_votado_libre = `PARTIDO LIBERTAD Y REFUNDACION`,
-                       
-                       max_posible_plh = max_plh,
-                       mas_votado_plh = `PARTIDO LIBERAL DE HONDURAS`,
-                       
-                       max_posible_psh = max_psh,
-                       mas_votado_psh = PSH)
+                               JRV = jrv,
+                               papeletas_validas,
+                               
+                               max_posible_pn = max_pn,
+                               mas_votado_pn = `PARTIDO NACIONAL DE HONDURAS`,
+                               
+                               max_posible_libre = max_libre,
+                               mas_votado_libre = `PARTIDO LIBERTAD Y REFUNDACION`,
+                               
+                               max_posible_plh = max_plh,
+                               mas_votado_plh = `PARTIDO LIBERAL DE HONDURAS`,
+                               
+                               max_posible_psh = max_psh,
+                               mas_votado_psh = PSH)
 
 violaciones_plancha <- left_join(violaciones_plancha, jrvs, by = c("JRV" = "jrv"), keep=FALSE)
 
 ######################
-### Para Publicar ###
+### Para Finalizar ###
 #####################
 
 violaciones_final <- select(violaciones_plancha,
@@ -274,210 +247,8 @@ violaciones_final <- select(violaciones_plancha,
                             Direccion = URL,
                             Imagen = foto)
 
+Sys.sleep(2)
 
+view(violaciones_plancha)
 
-
-
-write.csv(violaciones_final, "Actas Irregulares.csv", row.names = FALSE)
-  
-
-
-```
-
-
-
-
-
-
-
-
-
-```{r Union Presidente y Diputados}
-# Calcular Marcas por Partido por Mesa
-
-marcasPartido <- 
-  consolidadoDips %>% 
-  group_by (centro, jrv, partidoDip) %>%
-  summarise (marcasDips = sum(cant_votos))
-
-marcasPartido$partidoDip <- str_replace(marcasPartido$partidoDip, "PSH", "PSH/UNOH")
-
-
-# Agregarle data de votos de Presidente a MarcasPartido
-
-resPartidos <- 
-  consolidadoPres %>%
-  select(departamento,
-         jrv, 
-         votantes_pres = cant_votantes,
-         partidoPres = descripcion_candidatura,
-         marcasPres = cant_votos)
-
-resPartidos$partidoPres <- str_replace(resPartidos$partidoPres, "UNIDAD NACIONAL OPOSITORA DE HONDURAS", "PSH/UNOH")
-         
-####################################
-#### Armar Tabla de Resultados ####
-###################################
-
-resultados <- 
-  left_join(marcasPartido, resPartidos, by = c("jrv", "partidoDip" = "partidoPres"), keep = TRUE) %>%
-  select(departamento, centro, jrv = jrv.x, carga = votantes_pres, partidoPres, marcasPres, partidoDip, marcasDip = marcasDips) %>%
-  filter(partidoDip == "PARTIDO LIBERTAD Y REFUNDACION" | 
-         partidoDip == "PARTIDO NACIONAL DE HONDURAS" |
-         partidoDip == "PARTIDO LIBERAL DE HONDURAS" |
-         partidoDip == "PSH/UNOH")
-
-resultados$departamento <- as.numeric(resultados$departamento)
- 
-resultados <- left_join(resultados, codDepts, by = c("departamento" = "id_departamento"), keep = FALSE)
-resultados$marcasPosibles <- resultados$carga*resultados$numero_casillas
-
-
-#rm(codPartidos, marcasPartido, resPartidos)
-
-### Agregar mas Resultados ###
-
-resultados$sharePres <- round((resultados$marcasPres/resultados$carga)*100, 1)
-
-### Total MarcasDips ###
-
-sum.marcasDips <- 
-  group_by (resultados, jrv) %>%
-  summarise(total.marcasDips = sum(marcasDip))
-
-resultados <- left_join(resultados, sum.marcasDips, by = "jrv", keep = FALSE)
-resultados$shareDips <- round((resultados$marcasDip/resultados$total.marcasDips)*100, 1)
-
-#rm(consolidadoDips, consolidadoPres, sum.marcasDips, codDepts)
-  
-#####################################
-#### Trabajar Tabla de Resultados ###
-#####################################
-
-resultados <- rename(resultados, partido = partidoPres)
-resultados$partidoDip <- NULL
-
-### Encontrar Exceso de Marcas###
-
-resultados$exceso_marcas <- ifelse (resultados$total.marcasDips > resultados$marcasPosibles,
-                                    yes = 1,
-                                    no = 0)
-
-
-
-### Encontrar 
-
-
-
-
-
-#### Dividir en solo dos grupos: Partido Nacional y Oposicion ####
-# Esto porque el cruce es entre Partido de Presidente y Oposicion.
-
-
-
-
-
-
-
-
-
-```
-
-
-
-
-
-
-
-
-
-#Codigo para Documentacion de Proceso de Scraping
-  
-  ```{r Loops Para Scrape}
-
-### Preparar Selenium y abrir browser ###
-
-driver <- rsDriver(browser=c("firefox"))
-remDr <- driver[["client"]]
-
-##
-
-##############################
-#### LOOP Scrape CSV DIPS ####
-##############################
-
-
-for(i in 1:nrow(sps))  {
-  remDr$navigate(paste0(sps$url[[i]]))
-  Sys.sleep(2)
-  buttonDL <- remDr$findElement(using = "link text", "CSV")
-  buttonDL$clickElement()
-  Sys.sleep(1)
-}
-
-##############################
-#### LOOP Scrape CSV PRES ####
-##############################
-
-for(i in 1:nrow(spspres))  {
-  remDr$navigate(paste0(spspres$presurl[[i]]))
-  Sys.sleep(1)
-  buttonDL <- remDr$findElement(using = "link text", "CSV")
-  buttonDL$clickElement()
-  Sys.sleep(1)
-}
-
-```
-
-
-#Codigo para Documentacion de Proceso de Consolidacion de Archivos
-
-```{r Unir todos los archivos}
-
-# Solo para propositos de documentacion y replicabilidad. #
-# Accesar los archivos consolidados en el folder "data", bajjo nombres 
-# consolidadoPres.csv y consolidadoDips.csv
-
-#############################
-### Resultados Presidente ###
-#############################
-
-consolidadoPres <- data.frame()
-
-for (i in 1:nrow(spspres)) {
-  resPres <- 
-    read_csv(paste0("data/Resultados/Presidente/",spspres$PRESJRV[[i]], "_PRE_PRE.csv" )) %>%
-    select(id_ubicacion, cant_votantes, 
-           cant_votos_positivos, cant_votos_negativos, 
-           porcentaje_participacion, id_candidatura, 
-           descripcion_candidatura, cant_votos, hora_proceso )
-  
-    consolidadoPres <- rbind(consolidadoPres, resPres) 
-    
-    }
-
-write.csv(consolidadoPres, "data/consolidadoPres.csv", row.names = FALSE)
-
-###########################
-### Resultados Congreso ###
-###########################
-
-consolidadoDips <- data.frame()
-
-for (i in 1:nrow(spspres)) {
-  resDips <- 
-    read_csv(paste0("data/Resultados/Diputados/",spspres$PRESJRV[[i]], "_DIP_DIP.csv" )) %>%
-    select(id_ubicacion, cant_votos_positivos, cant_votos_negativos,
-           porcentaje_participacion, cant_votantes, id_candidatura,
-           descripcion_candidatura, cant_votos, hora_proceso)
-  
-    consolidadoDips <- rbind(consolidadoDips, resDips)
-    
-    }
-
-write.csv(consolidadoDips, "data/consolidadoDips.csv", row.names = FALSE)
-
-
-```
 
